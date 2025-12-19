@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Energy Dashboard Card - Custom Home Assistant Card
 # 
 # CHANGELOG (December 20, 2025):
@@ -232,4 +233,240 @@ custom_fields:
         ${car_enabled ? `<text x="${T_CAR_X}" y="${T_CAR_Y}" transform="${trans_car}" fill="${C_WHITE}" font-size="15" style="${TxtStyle}">${formatPower(car_w)}</text>` : ''}
       </svg>
       `;
+=======
+# Energy Dashboard Card - Custom Home Assistant Card
+# 
+# CHANGELOG (December 20, 2025):
+# - Added automatic unit detection and conversion (kW to W) for all power sensors
+# - Added configurable display unit (W or kW) via display_unit variable
+# - Added configurable card column span via card_columns variable
+# - Added configurable update interval via update_interval variable (leave empty for sensor-based updates)
+# - Added optional sensor_pv2 support (leave empty to use combined PV value in sensor_pv1)
+# - Added optional sensor_car_power support (leave empty to hide car flow/text)
+# - Added optional sensor_bat2 support (leave empty to use combined battery values in bat1)
+# - Added configurable daily production label via daily_production_label variable
+# - Improved display logic: removes "S1:" prefix when only one PV sensor is used
+# - Enhanced formatPower function for dynamic W/kW display
+# - All sensors now properly handle both W and kW units automatically
+#
+id: energy_dashboard_template_github
+type: custom:button-card
+aspect_ratio: 16/9
+show_name: false
+show_icon: false
+variables:
+  # SENSORI PLACEHOLDER - Sostituire con i propri sensori reali
+  sensor_pv1: sensor.sigen_pv_power  # Can be combined PV value or individual string
+  sensor_pv2: ""  # Leave empty "" if using combined value in sensor_pv1
+  sensor_daily: sensor.sigen_daily_pv_energy_production
+  sensor_bat1_soc: sensor.sigen_energy_storage_system_soc  # Can be combined battery SOC or individual battery
+  sensor_bat1_power: sensor.sigen_ess_charge_discharge_power  # Can be combined battery power or individual battery
+  sensor_bat2_soc: ""  # Leave empty "" if using combined value in sensor_bat1_soc
+  sensor_bat2_power: ""  # Leave empty "" if using combined value in sensor_bat1_power
+  sensor_home_load: sensor.sigen_consumed_power
+  sensor_grid_power: sensor.sigen_grid_sensor_import_power
+  sensor_car_power: "sensor.ev_charging_power"
+  display_unit: "kW"  # Set to "W" for Watts or "kW" for kiloWatts
+  card_columns: 2  # Number of columns the card should span (1-12)
+  daily_production_label: "PRODUCTION TODAY"  # Label for daily production box "PRODUZIONE OGGI"
+  update_interval: ""  # Update interval in seconds (e.g., "5", "10", "30"). Leave empty "" for sensor-based updates
+  bg_image: >-
+    https://raw.githubusercontent.com/Giorgio866/Energy-dashboard/refs/heads/main/1766059623936.jpg
+
+view_layout:
+  grid-column: span [[[ return variables.card_columns || 2; ]]]
+
+entity_id: |
+  [[[
+    var update_interval = variables.update_interval;
+    if (update_interval && update_interval !== "") {
+      return [];  // Return empty array to prevent sensor-based updates
+    }
+    // Collect all configured sensors for auto-update
+    var sensors = [];
+    if (variables.sensor_pv1) sensors.push(variables.sensor_pv1);
+    if (variables.sensor_pv2) sensors.push(variables.sensor_pv2);
+    if (variables.sensor_daily) sensors.push(variables.sensor_daily);
+    if (variables.sensor_bat1_soc) sensors.push(variables.sensor_bat1_soc);
+    if (variables.sensor_bat1_power) sensors.push(variables.sensor_bat1_power);
+    if (variables.sensor_bat2_soc) sensors.push(variables.sensor_bat2_soc);
+    if (variables.sensor_bat2_power) sensors.push(variables.sensor_bat2_power);
+    if (variables.sensor_home_load) sensors.push(variables.sensor_home_load);
+    if (variables.sensor_grid_power) sensors.push(variables.sensor_grid_power);
+    if (variables.sensor_car_power) sensors.push(variables.sensor_car_power);
+    return sensors.filter(s => s && s !== "");
+  ]]]
+
+triggers_update: |
+  [[[
+    var update_interval = variables.update_interval;
+    if (update_interval && update_interval !== "") {
+      return ['all'];  // Trigger update on every state change to allow timer to work
+    }
+    return 'all';
+  ]]]
+
+state_display: |
+  [[[
+    var update_interval = variables.update_interval;
+    if (update_interval && update_interval !== "") {
+      var now = new Date();
+      var seconds = Math.floor(now.getTime() / 1000);
+      var interval_sec = parseInt(update_interval);
+      return Math.floor(seconds / interval_sec).toString();
+    }
+    return '';
+  ]]]
+
+styles:
+  card:
+    - padding: 0
+    - border: none
+    - background: transparent
+    - position: relative
+    - box-shadow: none
+  grid:
+    - grid-template-areas: "\"svg_dashboard\""
+    - grid-template-columns: 1fr
+    - grid-template-rows: 1fr
+  custom_fields:
+    svg_dashboard:
+      - z-index: 0
+
+extra_styles: >
+  .track-path { stroke: #555555; stroke-width: 2px; fill: none; opacity: 0; }
+
+  .flow-path { stroke-dasharray: 8 16; stroke-linecap: round; stroke-width: 2px;
+  fill: none; opacity: 0; transition: all 0.5s ease; }
+
+  @keyframes laser-flow { to { stroke-dashoffset: -320; } }
+
+  @keyframes pulse-cyan { 0% { filter: drop-shadow(0 0 2px #00FFFF); opacity:
+  0.9; } 50% { filter: drop-shadow(0 0 10px #00FFFF); opacity: 1; } 100% {
+  filter: drop-shadow(0 0 2px #00FFFF); opacity: 0.9; } }
+
+  .alive-box { animation: pulse-cyan 3s infinite ease-in-out; stroke: #00FFFF;
+  stroke-width: 2px; fill: rgba(0, 20, 40, 0.7); }
+
+  .alive-text { animation: pulse-cyan 3s infinite ease-in-out; fill: #00FFFF;
+  text-shadow: 0 0 5px #00FFFF; }
+
+  @keyframes wave-slide { 0% { transform: translateX(0); } 100% { transform:
+  translateX(-80px); } }
+
+  .liquid-shape { animation: wave-slide 2s linear infinite; fill: rgba(0, 255,
+  255, 0.85); }
+
+  .flow-pv1 { opacity: 1; animation: laser-flow 2s linear infinite; filter:
+  drop-shadow(0 0 4px #00FFFF); stroke: #00FFFF; }
+
+  .flow-pv2 { opacity: 1; animation: laser-flow 2s linear infinite; filter:
+  drop-shadow(0 0 4px #0088FF); stroke: #0088FF; }
+
+  .flow-generic { opacity: 1; animation: laser-flow 2s linear infinite; filter:
+  drop-shadow(0 0 4px #00FFFF); stroke: #00FFFF; }
+
+  .flow-reverse { opacity: 1; animation: laser-flow 2s linear infinite reverse;
+  filter: drop-shadow(0 0 4px #FFFFFF); stroke: #FFFFFF; }
+
+  .flow-grid-import { opacity: 1; animation: laser-flow 2s linear infinite
+  reverse; filter: drop-shadow(0 0 4px #FF3333); stroke: #FF3333; }
+
+custom_fields:
+  svg_dashboard: |
+    [[[
+      function getStateSafe(entity_id) { 
+        if (!entity_id || !states[entity_id] || states[entity_id].state === 'unavailable') return 0;
+        var value = parseFloat(states[entity_id].state);
+        var unit = states[entity_id].attributes.unit_of_measurement;
+        if (unit && (unit.toLowerCase() === 'kw' || unit.toLowerCase() === 'kwh')) {
+          value = value * 1000;
+        }
+        return value;
+      }
+      var s_bat1_soc = variables.sensor_bat1_soc; var s_bat1_pow = variables.sensor_bat1_power;
+      var s_bat2_soc = variables.sensor_bat2_soc; var s_bat2_pow = variables.sensor_bat2_power;
+      var bat1_soc = getStateSafe(s_bat1_soc); var bat1_w = getStateSafe(s_bat1_pow);
+      var bat2_config = (s_bat2_soc !== "" && s_bat2_soc !== null && s_bat2_soc !== undefined);
+      var bat2_soc = bat2_config ? getStateSafe(s_bat2_soc) : 0; var bat2_w = bat2_config ? getStateSafe(s_bat2_pow) : 0;
+      var total_bat_w = Math.round(bat1_w + bat2_w);
+      var avg_soc = Math.round((bat1_soc + bat2_soc) / (bat2_config ? 2 : 1));
+
+      function getVar(var_name) { var entity_id = variables[var_name]; return getStateSafe(entity_id); }
+      var s_pv2 = variables.sensor_pv2;
+      var pv2_enabled = (s_pv2 !== "" && s_pv2 !== null && s_pv2 !== undefined);
+      var pv1 = getVar('sensor_pv1'); 
+      var pv2 = pv2_enabled ? getVar('sensor_pv2') : 0;
+      var grid = getVar('sensor_grid_power');
+      var load = getVar('sensor_home_load'); var daily = getVar('sensor_daily');
+      var s_car_power = variables.sensor_car_power;
+      var car_enabled = (s_car_power !== "" && s_car_power !== null && s_car_power !== undefined);
+      var car_w = car_enabled ? getVar('sensor_car_power') : 0;
+      var bg_img = variables.bg_image;
+      var display_unit = variables.display_unit || "W";
+      var use_kw = (display_unit.toUpperCase() === "KW");
+      var daily_label = variables.daily_production_label || "PRODUZIONE OGGI";
+
+      function formatPower(watts) {
+        if (use_kw) {
+          return (watts / 1000).toFixed(2) + ' kW';
+        }
+        return Math.round(watts) + ' W';
+      }
+
+      var total_solar = Math.round(pv1 + pv2); var total_grid = Math.round(grid); var total_load = Math.round(load); var total_daily_kwh = (daily / 1000).toFixed(1);
+
+      var BAT_X = 260; var BAT_Y_BASE = 350; var BAT_W = 55; var BAT_MAX_H = 84;    
+      var BAT_SKEW_Y = 30; var BAT_SKEW_X = -4; var BAT_ROTATION = -6;
+      var current_h = (avg_soc / 100) * BAT_MAX_H;
+      var bat_transform = `translate(${BAT_X}, ${BAT_Y_BASE}) rotate(${BAT_ROTATION}) skewX(${BAT_SKEW_X}) skewY(${BAT_SKEW_Y}) translate(-${BAT_X}, -${BAT_Y_BASE})`;
+
+      var T_SOLAR_X = 177; var T_SOLAR_Y = 310; var T_SOLAR_R = -16; var T_SOLAR_SX = 39; var T_SOLAR_SY = 0;
+      var T_BAT_X = 245; var T_BAT_Y = 375; var T_BAT_R = -25;  var T_BAT_SX =30;  var T_BAT_SY = 5;
+      var T_HOME_X = 460; var T_HOME_Y = 245; var T_HOME_R = -20; var T_HOME_SX = -20; var T_HOME_SY = 3;
+      var T_GRID_X = 580; var T_GRID_Y = 110; var T_GRID_R = -8;  var T_GRID_SX = -10;   var T_GRID_SY = 0;
+      var T_CAR_X = 590;  var T_CAR_Y = 305; var T_CAR_R = 16;  var T_CAR_SX = 20;   var T_CAR_SY = 0; 
+      function getTxtTrans(x, y, r, sx, sy) { return `translate(${x}, ${y}) rotate(${r}) skewX(${sx}) skewY(${sy}) translate(-${x}, -${y})`; }
+      var trans_solar = getTxtTrans(T_SOLAR_X, T_SOLAR_Y, T_SOLAR_R, T_SOLAR_SX, T_SOLAR_SY);
+      var trans_bat = getTxtTrans(T_BAT_X, T_BAT_Y, T_BAT_R, T_BAT_SX, T_BAT_SY);
+      var trans_home = getTxtTrans(T_HOME_X, T_HOME_Y, T_HOME_R, T_HOME_SX, T_HOME_SY);
+      var trans_grid = getTxtTrans(T_GRID_X, T_GRID_Y, T_GRID_R, T_GRID_SX, T_GRID_SY);
+      var trans_car = getTxtTrans(T_CAR_X, T_CAR_Y, T_CAR_R, T_CAR_SX, T_CAR_SY);
+
+      function getDur(watts) { var w = Math.abs(watts); if (w < 10) return "0s"; var max_w = 6000; var min_dur = 0.5; var max_dur = 30.0; var factor = Math.min(w / max_w, 1); var duration = max_dur - (factor * (max_dur - min_dur)); return duration.toFixed(2) + "s"; }
+      var dur_pv1 = getDur(pv1); var dur_pv2 = getDur(pv2); var dur_bat = getDur(total_bat_w); var dur_load = getDur(total_load); var dur_grid = getDur(total_grid); var dur_car = getDur(car_w);
+
+      const C_PV1_COL = "#00FFFF"; const C_PV2_COL = "#0088FF"; const C_CYAN = "#00FFFF"; const C_WHITE = "#FFFFFF"; const C_RED = "#FF3333";
+      var pv1_class = (pv1 > 10) ? "flow-pv1" : ""; var pv2_class = (pv2 > 10) ? "flow-pv2" : ""; var load_class = (total_load > 10) ? "flow-generic" : ""; var car_class = (car_w > 10) ? "flow-generic" : ""; var bat_class = (total_bat_w > 10) ? "flow-generic" : (total_bat_w < -10) ? "flow-reverse" : ""; var bat_col = (total_bat_w >= 0) ? C_CYAN : C_WHITE; var grid_class = (grid > 10) ? "flow-grid-import" : (grid < -10) ? "flow-generic" : ""; var grid_col = (grid > 10) ? C_RED : C_CYAN;
+
+      const PATH_PV1 = "M 250 237 L 282 230 L 420 280"; const PATH_PV2 = "M 200 205 L 282 238 L 420 288"; const PATH_BAT_INV = "M 423 310 L 325 350"; const PATH_LOAD = "M 471 303 L 550 273 L 380 220"; const PATH_GRID = "M 470 280 L 575 240 L 575 223"; const PATH_CAR = "M 475 329 L 490 335 L 600 285"; 
+
+      const TxtStyle = 'font-weight:bold; font-family: sans-serif; text-anchor:middle; text-shadow: 0 0 5px black;';
+      const BoxLabelStyle = 'font-family: sans-serif; text-anchor:middle; font-size:12px; font-weight:normal; letter-spacing: 1px;';
+      const BoxValueStyle = 'font-family: sans-serif; text-anchor:middle; font-size:20px; font-weight:bold;';
+
+      return `
+      <svg viewBox="0 0 800 450" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" style="width: 100%; height: 100%;">
+        <defs><clipPath id="battery-clip"><rect x="${BAT_X}" y="${BAT_Y_BASE - BAT_MAX_H}" width="${BAT_W}" height="${BAT_MAX_H}" rx="2" /></clipPath></defs>
+        <image href="${bg_img}" xlink:href="${bg_img}" x="0" y="0" width="800" height="450" preserveAspectRatio="none" />
+        <rect x="610" y="20" width="180" height="60" rx="10" ry="10" class="alive-box" />
+        <text x="700" y="45" class="alive-text" style="${BoxLabelStyle}">${daily_label}</text>
+        <text x="700" y="70" class="alive-text" style="${BoxValueStyle}">${total_daily_kwh} kWh</text>
+        <g transform="${bat_transform}"><g clip-path="url(#battery-clip)"><g style="transition: transform 1s ease-in-out;" transform="translate(0, ${BAT_MAX_H - current_h})"><g transform="translate(0, ${BAT_Y_BASE - BAT_MAX_H})"><path class="liquid-shape" d="M ${BAT_X - 20} 5 Q ${BAT_X} 0 ${BAT_X + 20} 5 T ${BAT_X + 60} 5 T ${BAT_X + 100} 5 T ${BAT_X + 140} 5 V 150 H ${BAT_X - 20} Z" /></g></g></g></g>
+        <path class="track-path" d="${PATH_PV1}" /><path class="flow-path ${pv1_class}" d="${PATH_PV1}" style="animation-duration: ${dur_pv1};" />
+        ${pv2_enabled ? `<path class="track-path" d="${PATH_PV2}" /><path class="flow-path ${pv2_class}" d="${PATH_PV2}" style="animation-duration: ${dur_pv2};" />` : ''}
+        <path class="track-path" d="${PATH_BAT_INV}" /><path class="flow-path ${bat_class}" d="${PATH_BAT_INV}" stroke="${bat_col}" style="animation-duration: ${dur_bat};" />
+        <path class="track-path" d="${PATH_LOAD}" /><path class="flow-path ${load_class}" d="${PATH_LOAD}" stroke="${C_CYAN}" style="animation-duration: ${dur_load};" />
+        <path class="track-path" d="${PATH_GRID}" /><path class="flow-path ${grid_class}" d="${PATH_GRID}" stroke="${grid_col}" style="animation-duration: ${dur_grid};" />
+        ${car_enabled ? `<path class="track-path" d="${PATH_CAR}" /><path class="flow-path ${car_class}" d="${PATH_CAR}" stroke="${C_CYAN}" style="animation-duration: ${dur_car};" />` : ''}
+        ${pv2_enabled ? `<text x="${T_SOLAR_X}" y="${T_SOLAR_Y - 10}" transform="${trans_solar}" fill="${C_PV1_COL}" font-size="16" style="${TxtStyle}">S1: ${formatPower(pv1)}</text>
+        <text x="${T_SOLAR_X}" y="${T_SOLAR_Y + 10}" transform="${trans_solar}" fill="${C_PV2_COL}" font-size="16" style="${TxtStyle}">S2: ${formatPower(pv2)}</text>` : `<text x="${T_SOLAR_X}" y="${T_SOLAR_Y}" transform="${trans_solar}" fill="${C_PV1_COL}" font-size="16" style="${TxtStyle}">${formatPower(pv1)}</text>`}
+        <text x="${T_BAT_X}" y="${T_BAT_Y}" transform="${trans_bat}" fill="${C_WHITE}" font-size="20" style="${TxtStyle}; text-shadow: 0 0 5px #000;">${Math.floor(avg_soc)}%</text>
+        <text x="${T_BAT_X}" y="${T_BAT_Y + 20}" transform="${trans_bat}" fill="${C_CYAN}" font-size="14" style="${TxtStyle}; text-shadow: 0 0 5px #000;">${formatPower(Math.abs(total_bat_w))}</text>
+        <text x="${T_HOME_X}" y="${T_HOME_Y}" transform="${trans_home}" fill="${C_WHITE}" font-size="15" style="${TxtStyle}">${formatPower(total_load)}</text>
+        <text x="${T_GRID_X}" y="${T_GRID_Y}" transform="${trans_grid}" fill="${grid_col}" font-size="15" style="${TxtStyle}">${formatPower(Math.abs(total_grid))}</text>
+        ${car_enabled ? `<text x="${T_CAR_X}" y="${T_CAR_Y}" transform="${trans_car}" fill="${C_WHITE}" font-size="15" style="${TxtStyle}">${formatPower(car_w)}</text>` : ''}
+      </svg>
+      `;
+>>>>>>> a03a534d4b0539dcc280d8a3a57651c9a37ed102
     ]]]
